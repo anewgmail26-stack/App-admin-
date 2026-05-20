@@ -1,0 +1,1868 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VPN Server Admin Panel</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07111f;
+      --bg-soft: #0d1b2e;
+      --panel: rgba(14, 28, 47, 0.86);
+      --panel-strong: rgba(18, 36, 61, 0.94);
+      --text: #edf6ff;
+      --muted: #93a7bd;
+      --border: rgba(145, 169, 195, 0.22);
+      --primary: #29d3a3;
+      --primary-strong: #11b98b;
+      --accent: #69a7ff;
+      --danger: #ff6b7f;
+      --warning: #ffd166;
+      --success: #45df98;
+      --shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+      --radius-lg: 28px;
+      --radius-md: 18px;
+      --radius-sm: 12px;
+      --font: "Segoe UI", "Noto Sans", "Noto Color Emoji", sans-serif;
+    }
+
+    body.light {
+      color-scheme: light;
+      --bg: #eef5ff;
+      --bg-soft: #dceafd;
+      --panel: rgba(255, 255, 255, 0.86);
+      --panel-strong: rgba(255, 255, 255, 0.98);
+      --text: #0b1727;
+      --muted: #5a6c82;
+      --border: rgba(31, 51, 79, 0.14);
+      --primary: #087f68;
+      --primary-strong: #066b58;
+      --accent: #1d66d2;
+      --danger: #c5223f;
+      --warning: #9c6900;
+      --success: #05764d;
+      --shadow: 0 24px 70px rgba(60, 85, 120, 0.18);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(41, 211, 163, 0.22), transparent 34rem),
+        radial-gradient(circle at 85% 8%, rgba(105, 167, 255, 0.2), transparent 28rem),
+        linear-gradient(135deg, var(--bg), var(--bg-soft));
+      color: var(--text);
+      font-family: var(--font);
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .shell {
+      width: min(1440px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 28px 0 42px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 1.3fr 0.7fr;
+      gap: 24px;
+      padding: 30px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      right: -130px;
+      bottom: -170px;
+      width: 360px;
+      height: 360px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(41, 211, 163, 0.18), rgba(105, 167, 255, 0.1));
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      margin: 0 0 14px;
+      padding: 7px 11px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--primary);
+      background: rgba(41, 211, 163, 0.1);
+      font-size: 0.84rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      max-width: 920px;
+      margin-bottom: 10px;
+      font-size: clamp(2rem, 6vw, 4.6rem);
+      line-height: 0.94;
+      letter-spacing: -0.065em;
+    }
+
+    .hero p {
+      max-width: 780px;
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: clamp(1rem, 2vw, 1.12rem);
+      line-height: 1.7;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .status-stack {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .status-card {
+      padding: 18px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--panel);
+    }
+
+    .status-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .status-card strong {
+      display: block;
+      margin-top: 8px;
+      font-size: 1.45rem;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.06);
+      font-size: 0.88rem;
+      font-weight: 700;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: var(--warning);
+      box-shadow: 0 0 0 5px rgba(255, 209, 102, 0.12);
+    }
+
+    .dot.good {
+      background: var(--success);
+      box-shadow: 0 0 0 5px rgba(69, 223, 152, 0.12);
+    }
+
+    .dot.bad {
+      background: var(--danger);
+      box-shadow: 0 0 0 5px rgba(255, 107, 127, 0.12);
+    }
+
+    .tabs {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      gap: 10px;
+      margin: 22px 0;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: rgba(7, 17, 31, 0.78);
+      backdrop-filter: blur(18px);
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    body.light .tabs {
+      background: rgba(255, 255, 255, 0.78);
+    }
+
+    .tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .tab-btn,
+    .btn {
+      border: 0;
+      border-radius: 999px;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.08);
+      transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+    }
+
+    .tab-btn {
+      flex: 0 0 auto;
+      padding: 12px 16px;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .tab-btn.active {
+      color: #06131f;
+      background: var(--primary);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 42px;
+      padding: 11px 15px;
+      border: 1px solid var(--border);
+      font-weight: 800;
+    }
+
+    .btn:hover,
+    .tab-btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn.primary {
+      color: #06131f;
+      border-color: transparent;
+      background: var(--primary);
+    }
+
+    .btn.primary:hover {
+      background: var(--primary-strong);
+    }
+
+    .btn.ghost {
+      color: var(--muted);
+      background: transparent;
+    }
+
+    .btn.danger {
+      color: #fff;
+      border-color: transparent;
+      background: var(--danger);
+    }
+
+    .btn.small {
+      min-height: 34px;
+      padding: 8px 11px;
+      font-size: 0.82rem;
+    }
+
+    .section {
+      display: none;
+      animation: liftIn 0.35s ease both;
+    }
+
+    .section.active {
+      display: block;
+    }
+
+    @keyframes liftIn {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .panel {
+      padding: 22px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .panel + .panel {
+      margin-top: 18px;
+    }
+
+    .panel-title {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .panel-title h2 {
+      margin-bottom: 5px;
+      font-size: clamp(1.35rem, 3vw, 2rem);
+      letter-spacing: -0.03em;
+    }
+
+    .panel-title p {
+      margin-bottom: 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .notice {
+      margin: 18px 0;
+      padding: 16px;
+      border: 1px solid rgba(255, 209, 102, 0.32);
+      border-radius: var(--radius-md);
+      color: var(--warning);
+      background: rgba(255, 209, 102, 0.08);
+      line-height: 1.6;
+    }
+
+    .notice.hidden {
+      display: none;
+    }
+
+    .filter-grid,
+    .form-grid,
+    .stats-grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .filter-grid {
+      grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(130px, 180px));
+      align-items: end;
+    }
+
+    .filter-grid .field {
+      grid-column: auto;
+    }
+
+    .form-grid {
+      grid-template-columns: repeat(12, 1fr);
+    }
+
+    .stats-grid {
+      grid-template-columns: repeat(4, 1fr);
+      margin-bottom: 18px;
+    }
+
+    .stat {
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .stat strong {
+      display: block;
+      margin-top: 8px;
+      font-size: 1.8rem;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+      grid-column: span 4;
+    }
+
+    .field.full {
+      grid-column: 1 / -1;
+    }
+
+    .field.half {
+      grid-column: span 6;
+    }
+
+    .field.third {
+      grid-column: span 4;
+    }
+
+    .field.small {
+      grid-column: span 3;
+    }
+
+    label {
+      color: var(--muted);
+      font-size: 0.84rem;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      min-height: 46px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.07);
+      outline: none;
+      padding: 12px 13px;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+
+    body.light input,
+    body.light select,
+    body.light textarea {
+      background: rgba(255, 255, 255, 0.88);
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: rgba(41, 211, 163, 0.75);
+      box-shadow: 0 0 0 4px rgba(41, 211, 163, 0.14);
+    }
+
+    textarea {
+      min-height: 96px;
+      resize: vertical;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      grid-column: 1 / -1;
+      padding-top: 4px;
+    }
+
+    .check {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      color: var(--text);
+      font-weight: 800;
+      user-select: none;
+    }
+
+    .check input {
+      width: 18px;
+      height: 18px;
+      min-height: auto;
+      accent-color: var(--primary);
+    }
+
+    .form-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      grid-column: 1 / -1;
+      margin-top: 8px;
+    }
+
+    .form-actions .left,
+    .form-actions .right {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .edit-banner {
+      display: none;
+      grid-column: 1 / -1;
+      padding: 12px 14px;
+      border: 1px solid rgba(105, 167, 255, 0.35);
+      border-radius: var(--radius-sm);
+      color: var(--accent);
+      background: rgba(105, 167, 255, 0.08);
+      font-weight: 800;
+    }
+
+    .edit-banner.show {
+      display: block;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .server-card {
+      position: relative;
+      overflow: hidden;
+      display: grid;
+      gap: 14px;
+      padding: 18px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--panel-strong);
+    }
+
+    .server-card::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 5px;
+      background: var(--primary);
+    }
+
+    .server-card.disabled::before {
+      background: var(--danger);
+    }
+
+    .server-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .server-name {
+      margin: 0;
+      font-size: 1.12rem;
+      line-height: 1.25;
+      letter-spacing: -0.02em;
+      word-break: break-word;
+    }
+
+    .server-meta {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      min-height: 28px;
+      padding: 6px 9px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.06);
+      font-size: 0.78rem;
+      font-weight: 900;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .tag.ok {
+      color: var(--success);
+      border-color: rgba(69, 223, 152, 0.32);
+      background: rgba(69, 223, 152, 0.08);
+    }
+
+    .tag.off {
+      color: var(--danger);
+      border-color: rgba(255, 107, 127, 0.32);
+      background: rgba(255, 107, 127, 0.08);
+    }
+
+    .tag.premium {
+      color: var(--warning);
+      border-color: rgba(255, 209, 102, 0.34);
+      background: rgba(255, 209, 102, 0.08);
+    }
+
+    .kv {
+      display: grid;
+      grid-template-columns: 90px 1fr;
+      gap: 7px 10px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .kv strong {
+      color: var(--text);
+      font-weight: 800;
+      word-break: break-word;
+    }
+
+    .card-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    .empty {
+      padding: 30px;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-md);
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.65;
+    }
+
+    .setup-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+
+    .step {
+      padding: 18px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.05);
+      line-height: 1.65;
+    }
+
+    .step h3 {
+      margin-bottom: 8px;
+    }
+
+    code,
+    pre {
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      background: rgba(0, 0, 0, 0.25);
+    }
+
+    code {
+      padding: 2px 6px;
+    }
+
+    pre {
+      overflow-x: auto;
+      padding: 13px;
+      white-space: pre;
+    }
+
+    .toast-wrap {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 100;
+      display: grid;
+      gap: 10px;
+      width: min(420px, calc(100% - 36px));
+    }
+
+    .toast {
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-left: 5px solid var(--primary);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      background: var(--panel-strong);
+      box-shadow: var(--shadow);
+      animation: toastIn 0.25s ease both;
+    }
+
+    .toast.error {
+      border-left-color: var(--danger);
+    }
+
+    .toast.success {
+      border-left-color: var(--success);
+    }
+
+    @keyframes toastIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .hide {
+      display: none !important;
+    }
+
+    @media (max-width: 1120px) {
+      .hero,
+      .setup-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .cards {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .filter-grid,
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 720px) {
+      .shell {
+        width: min(100% - 18px, 1440px);
+        padding-top: 10px;
+      }
+
+      .hero,
+      .panel {
+        padding: 18px;
+        border-radius: 22px;
+      }
+
+      .tabs {
+        border-radius: 18px;
+      }
+
+      .tab-btn {
+        padding: 10px 12px;
+      }
+
+      .cards,
+      .filter-grid,
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .field,
+      .field.half,
+      .field.third,
+      .field.small {
+        grid-column: 1 / -1;
+      }
+
+      .panel-title,
+      .form-actions,
+      .server-head {
+        flex-direction: column;
+      }
+
+      .form-actions {
+        align-items: stretch;
+      }
+
+      .form-actions .left,
+      .form-actions .right,
+      .btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div>
+        <div class="eyebrow">Realtime VPN Admin</div>
+        <h1>Manage public server links for your Android app.</h1>
+        <p>
+          Add V2Ray/Xray and SSH servers, parse share links, toggle premium access,
+          and sync every change live to <code>servers/public</code> in Firebase Realtime Database.
+        </p>
+        <div class="hero-actions">
+          <button class="btn primary" data-switch-tab="v2ray">Add V2Ray Server</button>
+          <button class="btn" data-switch-tab="ssh">Add SSH Server</button>
+          <button class="btn ghost" data-switch-tab="setup">Setup Guide</button>
+        </div>
+      </div>
+      <div class="status-stack">
+        <div class="status-card">
+          <span>Database</span>
+          <strong id="dbStatus">Checking config</strong>
+        </div>
+        <div class="status-card">
+          <span>Path</span>
+          <strong>servers/public</strong>
+        </div>
+        <div class="pill" id="connectionPill">
+          <span class="dot" id="connectionDot"></span>
+          <span id="connectionText">Waiting for config</span>
+        </div>
+      </div>
+    </section>
+
+    <nav class="tabs" aria-label="Admin sections">
+      <button class="tab-btn active" data-tab="dashboard">Server List</button>
+      <button class="tab-btn" data-tab="v2ray">Add V2Ray</button>
+      <button class="tab-btn" data-tab="ssh">Add SSH</button>
+      <button class="tab-btn" data-tab="setup">Setup</button>
+      <button class="tab-btn" type="button" id="themeToggle">Toggle Theme</button>
+    </nav>
+
+    <div class="notice" id="configNotice">
+      Firebase is not connected yet. Paste your Firebase Web SDK config inside
+      <code>firebaseConfig</code> near the bottom of this file. The databaseURL is already set.
+    </div>
+
+    <section class="section active" id="dashboard">
+      <div class="panel">
+        <div class="panel-title">
+          <div>
+            <h2>Live Server List</h2>
+            <p>Search, filter, edit, delete, enable/disable, and switch premium mode.</p>
+          </div>
+          <button class="btn ghost" type="button" id="refreshRender">Refresh View</button>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat">
+            <span>Total</span>
+            <strong id="statTotal">0</strong>
+          </div>
+          <div class="stat">
+            <span>Enabled</span>
+            <strong id="statEnabled">0</strong>
+          </div>
+          <div class="stat">
+            <span>V2Ray</span>
+            <strong id="statV2ray">0</strong>
+          </div>
+          <div class="stat">
+            <span>SSH</span>
+            <strong id="statSsh">0</strong>
+          </div>
+        </div>
+
+        <div class="filter-grid">
+          <div class="field fullish">
+            <label for="searchInput">Search</label>
+            <input id="searchInput" type="search" placeholder="Name, country, host, protocol">
+          </div>
+          <div class="field fullish">
+            <label for="categoryFilter">Category</label>
+            <select id="categoryFilter">
+              <option value="">All</option>
+              <option value="V2RAY">V2Ray</option>
+              <option value="SSH">SSH</option>
+            </select>
+          </div>
+          <div class="field fullish">
+            <label for="protocolFilter">Protocol</label>
+            <select id="protocolFilter">
+              <option value="">All</option>
+              <option value="VLESS">VLESS</option>
+              <option value="VMESS">VMESS</option>
+              <option value="TROJAN">TROJAN</option>
+              <option value="SSH_SSL">SSH_SSL</option>
+              <option value="SSH_PAYLOAD">SSH_PAYLOAD</option>
+              <option value="SSH_PAYLOAD_PROXY">SSH_PAYLOAD_PROXY</option>
+            </select>
+          </div>
+          <div class="field fullish">
+            <label for="statusFilter">Status</label>
+            <select id="statusFilter">
+              <option value="">All</option>
+              <option value="enabled">Enabled</option>
+              <option value="disabled">Disabled</option>
+              <option value="premium">Premium</option>
+              <option value="free">Free</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="serverList" class="cards"></div>
+      </div>
+    </section>
+
+    <section class="section" id="v2ray">
+      <div class="panel">
+        <div class="panel-title">
+          <div>
+            <h2>V2Ray/Xray Server</h2>
+            <p>Paste a VLESS, VMESS, or TROJAN link to auto-fill fields, then save the original link for Android import parsing.</p>
+          </div>
+        </div>
+
+        <form id="v2rayForm" class="form-grid" autocomplete="off">
+          <input type="hidden" id="v2EditKey">
+          <div class="edit-banner" id="v2EditBanner">Editing an existing V2Ray server.</div>
+
+          <div class="field full">
+            <label for="v2RawLink">Raw link</label>
+            <textarea id="v2RawLink" placeholder="vless://... or vmess://... or trojan://..."></textarea>
+          </div>
+
+          <div class="field half">
+            <label for="v2Name">Name</label>
+            <input id="v2Name" type="text" placeholder="Singapore VLESS">
+          </div>
+          <div class="field small">
+            <label for="v2Protocol">Protocol</label>
+            <select id="v2Protocol">
+              <option value="VLESS">VLESS</option>
+              <option value="VMESS">VMESS</option>
+              <option value="TROJAN">TROJAN</option>
+            </select>
+          </div>
+          <div class="field small">
+            <label for="v2Port">Port</label>
+            <input id="v2Port" type="number" min="1" max="65535" placeholder="443">
+          </div>
+
+          <div class="field third">
+            <label for="v2Country">Country</label>
+            <input id="v2Country" type="text" placeholder="Singapore">
+          </div>
+          <div class="field third">
+            <label for="v2Flag">Flag</label>
+            <input id="v2Flag" type="text" placeholder="🇸🇬">
+          </div>
+          <div class="field third">
+            <label for="v2Host">Host</label>
+            <input id="v2Host" type="text" placeholder="server.example.com">
+          </div>
+
+          <div class="field third">
+            <label for="v2Uuid">UUID / Password</label>
+            <input id="v2Uuid" type="text" placeholder="UUID or Trojan password">
+          </div>
+          <div class="field third">
+            <label for="v2Network">Network / Type</label>
+            <input id="v2Network" type="text" placeholder="ws, tcp, grpc">
+          </div>
+          <div class="field third">
+            <label for="v2Security">Security</label>
+            <input id="v2Security" type="text" placeholder="tls, reality, none">
+          </div>
+
+          <div class="field third">
+            <label for="v2Sni">SNI</label>
+            <input id="v2Sni" type="text" placeholder="cdn.example.com">
+          </div>
+          <div class="field third">
+            <label for="v2Path">WS Path / Path</label>
+            <input id="v2Path" type="text" placeholder="/">
+          </div>
+          <div class="field third">
+            <label for="v2HeaderHost">Header Host</label>
+            <input id="v2HeaderHost" type="text" placeholder="host header">
+          </div>
+
+          <div class="checkbox-row">
+            <label class="check"><input id="v2Enabled" type="checkbox" checked> Enabled</label>
+            <label class="check"><input id="v2Premium" type="checkbox"> Premium</label>
+          </div>
+
+          <div class="form-actions">
+            <div class="left">
+              <button class="btn ghost" type="button" id="parseV2Btn">Parse Raw Link</button>
+              <button class="btn ghost" type="button" id="cancelV2Edit">Cancel Edit</button>
+            </div>
+            <div class="right">
+              <button class="btn primary" type="submit" id="saveV2Btn">Save V2Ray Server</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="section" id="ssh">
+      <div class="panel">
+        <div class="panel-title">
+          <div>
+            <h2>SSH Server</h2>
+            <p>Choose SSH_SSL, SSH_PAYLOAD, or SSH_PAYLOAD_PROXY. Fields change automatically by mode.</p>
+          </div>
+        </div>
+
+        <form id="sshForm" class="form-grid" autocomplete="off">
+          <input type="hidden" id="sshEditKey">
+          <div class="edit-banner" id="sshEditBanner">Editing an existing SSH server.</div>
+
+          <div class="field half">
+            <label for="sshName">Name</label>
+            <input id="sshName" type="text" placeholder="BD SSH SSL">
+          </div>
+          <div class="field small">
+            <label for="sshMode">Mode</label>
+            <select id="sshMode">
+              <option value="SSH_SSL">SSH_SSL</option>
+              <option value="SSH_PAYLOAD">SSH_PAYLOAD</option>
+              <option value="SSH_PAYLOAD_PROXY">SSH_PAYLOAD_PROXY</option>
+            </select>
+          </div>
+          <div class="field small">
+            <label for="sshPort">Port</label>
+            <input id="sshPort" type="number" min="1" max="65535" placeholder="443">
+          </div>
+
+          <div class="field third">
+            <label for="sshCountry">Country</label>
+            <input id="sshCountry" type="text" placeholder="Bangladesh">
+          </div>
+          <div class="field third">
+            <label for="sshFlag">Flag</label>
+            <input id="sshFlag" type="text" placeholder="🇧🇩">
+          </div>
+          <div class="field third">
+            <label for="sshHost">Host</label>
+            <input id="sshHost" type="text" placeholder="host.com">
+          </div>
+
+          <div class="field half">
+            <label for="sshUsername">Username</label>
+            <input id="sshUsername" type="text" placeholder="user">
+          </div>
+          <div class="field half">
+            <label for="sshPassword">Password</label>
+            <input id="sshPassword" type="text" placeholder="pass">
+          </div>
+
+          <div class="field full" data-ssh-field="sni">
+            <label for="sshSni">SNI</label>
+            <input id="sshSni" type="text" placeholder="www.pubgmobile.com">
+          </div>
+          <div class="field full" data-ssh-field="payload">
+            <label for="sshPayload">Payload</label>
+            <textarea id="sshPayload" placeholder="GET / HTTP/1.1[crlf]Host: example.com[crlf][crlf]"></textarea>
+          </div>
+          <div class="field half" data-ssh-field="proxyHost">
+            <label for="sshProxyHost">Proxy Host</label>
+            <input id="sshProxyHost" type="text" placeholder="proxy.example.com">
+          </div>
+          <div class="field half" data-ssh-field="proxyPort">
+            <label for="sshProxyPort">Proxy Port</label>
+            <input id="sshProxyPort" type="number" min="1" max="65535" placeholder="8080">
+          </div>
+
+          <div class="checkbox-row">
+            <label class="check"><input id="sshEnabled" type="checkbox" checked> Enabled</label>
+            <label class="check"><input id="sshPremium" type="checkbox"> Premium</label>
+          </div>
+
+          <div class="form-actions">
+            <div class="left">
+              <button class="btn ghost" type="button" id="cancelSshEdit">Cancel Edit</button>
+            </div>
+            <div class="right">
+              <button class="btn primary" type="submit" id="saveSshBtn">Save SSH Server</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="section" id="setup">
+      <div class="panel">
+        <div class="panel-title">
+          <div>
+            <h2>Setup Instructions</h2>
+            <p>Use only Firebase Web SDK client config. Do not paste any private key into this file.</p>
+          </div>
+        </div>
+
+        <div class="setup-grid">
+          <div class="step">
+            <h3>1. Paste Firebase Web Config</h3>
+            <p>Open Firebase Console, go to Project settings, then General, then Your apps. Create or select a Web app and copy the <code>firebaseConfig</code> object.</p>
+            <p>Replace the placeholder <code>firebaseConfig</code> inside this file. Keep this database URL:</p>
+            <pre>https://my-new-vpn-88725-default-rtdb.asia-southeast1.firebasedatabase.app</pre>
+          </div>
+
+          <div class="step">
+            <h3>2. Open Locally</h3>
+            <p>After saving the config, double-click <code>admin.html</code> or open it in Chrome. If your browser blocks local scripts, run a small local server:</p>
+            <pre>python -m http.server 8080</pre>
+            <p>Then open <code>http://localhost:8080/admin.html</code>.</p>
+          </div>
+
+          <div class="step">
+            <h3>3. Deploy to Firebase Hosting</h3>
+            <p>From this folder, install and initialize Firebase Hosting if needed, then deploy:</p>
+            <pre>npm install -g firebase-tools
+firebase login
+firebase init hosting
+firebase deploy</pre>
+            <p>Choose this folder as the public folder if you want to host only this file, or place <code>admin.html</code> in your configured hosting folder.</p>
+          </div>
+
+          <div class="step">
+            <h3>4. Test With a VLESS Link</h3>
+            <p>Go to Add V2Ray, paste a <code>vless://</code> link into Raw link, then click Parse Raw Link or just paste and wait. Check protocol, host, port, UUID, network, security, SNI, path, and header host.</p>
+            <p>Save it, then verify the record appears under <code>servers/public</code> in Realtime Database.</p>
+          </div>
+
+          <div class="step">
+            <h3>5. Update Android App</h3>
+            <p>Open your Android VPN app, press its Updates or Refresh button, and confirm it reads the latest list from <code>servers/public</code>.</p>
+            <p>If the app does not update, check that the app reads the same database URL and path.</p>
+          </div>
+
+          <div class="step">
+            <h3>Rules Expectation</h3>
+            <p>The Android app can read <code>servers/public</code>. This admin page can write only if your database rules allow this Web SDK client to write.</p>
+            <p>Quick testing can use open writes briefly. For production, restrict writes to authenticated admin users.</p>
+            <pre>{
+  "rules": {
+    "servers": {
+      "public": {
+        ".read": true,
+        ".write": true
+      }
+    }
+  }
+}</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDju_k8XuHMzdOoApMFevstc0p0pz7O6A4",
+      authDomain: "my-new-vpn-88725.firebaseapp.com",
+      databaseURL: "https://my-new-vpn-88725-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "my-new-vpn-88725",
+      storageBucket: "my-new-vpn-88725.firebasestorage.app",
+      messagingSenderId: "167435475312",
+      appId: "1:167435475312:web:7ef02d45e11f6c8aa597b5",
+      measurementId: "G-7K66S7Z09Y"
+    };
+
+    const DATABASE_PATH = "servers/public";
+    const V2_PROTOCOLS = ["VLESS", "VMESS", "TROJAN"];
+    const SSH_PROTOCOLS = ["SSH_SSL", "SSH_PAYLOAD", "SSH_PAYLOAD_PROXY"];
+
+    const state = {
+      db: null,
+      ref: null,
+      configured: false,
+      servers: [],
+      filters: {
+        search: "",
+        category: "",
+        protocol: "",
+        status: ""
+      },
+      lastAutoParsedRaw: ""
+    };
+
+    const el = (id) => document.getElementById(id);
+    const qsa = (selector) => Array.from(document.querySelectorAll(selector));
+
+    document.addEventListener("DOMContentLoaded", () => {
+      bindTabs();
+      bindTheme();
+      bindFilters();
+      bindV2RayForm();
+      bindSshForm();
+      bindActionButtons();
+      updateSshDynamicFields();
+      initFirebase();
+      renderServers();
+    });
+
+    function bindTabs() {
+      qsa("[data-tab]").forEach((button) => {
+        button.addEventListener("click", () => switchTab(button.dataset.tab));
+      });
+
+      qsa("[data-switch-tab]").forEach((button) => {
+        button.addEventListener("click", () => switchTab(button.dataset.switchTab));
+      });
+    }
+
+    function switchTab(tabId) {
+      qsa(".tab-btn[data-tab]").forEach((button) => {
+        button.classList.toggle("active", button.dataset.tab === tabId);
+      });
+      qsa(".section").forEach((section) => {
+        section.classList.toggle("active", section.id === tabId);
+      });
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function bindTheme() {
+      const saved = localStorage.getItem("vpn-admin-theme");
+      if (saved === "light") document.body.classList.add("light");
+
+      el("themeToggle").addEventListener("click", () => {
+        document.body.classList.toggle("light");
+        localStorage.setItem("vpn-admin-theme", document.body.classList.contains("light") ? "light" : "dark");
+      });
+    }
+
+    function bindFilters() {
+      el("searchInput").addEventListener("input", (event) => {
+        state.filters.search = event.target.value.trim().toLowerCase();
+        renderServers();
+      });
+      el("categoryFilter").addEventListener("change", (event) => {
+        state.filters.category = event.target.value;
+        renderServers();
+      });
+      el("protocolFilter").addEventListener("change", (event) => {
+        state.filters.protocol = event.target.value;
+        renderServers();
+      });
+      el("statusFilter").addEventListener("change", (event) => {
+        state.filters.status = event.target.value;
+        renderServers();
+      });
+      el("refreshRender").addEventListener("click", () => {
+        renderServers();
+        toast("View refreshed.", "success");
+      });
+    }
+
+    function bindV2RayForm() {
+      el("v2rayForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        await saveV2Ray();
+      });
+
+      el("parseV2Btn").addEventListener("click", () => parseRawLinkIntoForm(true));
+      el("cancelV2Edit").addEventListener("click", resetV2Form);
+
+      let parseTimer = null;
+      el("v2RawLink").addEventListener("input", () => {
+        clearTimeout(parseTimer);
+        parseTimer = setTimeout(() => parseRawLinkIntoForm(false), 350);
+      });
+      el("v2RawLink").addEventListener("paste", () => {
+        setTimeout(() => parseRawLinkIntoForm(true), 50);
+      });
+    }
+
+    function bindSshForm() {
+      el("sshMode").addEventListener("change", updateSshDynamicFields);
+      el("sshForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        await saveSsh();
+      });
+      el("cancelSshEdit").addEventListener("click", resetSshForm);
+    }
+
+    function bindActionButtons() {
+      el("serverList").addEventListener("click", async (event) => {
+        const button = event.target.closest("button[data-action]");
+        if (!button) return;
+
+        const key = button.dataset.key;
+        const server = state.servers.find((item) => item.$key === key);
+        if (!server) {
+          toast("Server not found in current list.", "error");
+          return;
+        }
+
+        if (button.dataset.action === "edit") editServer(server);
+        if (button.dataset.action === "delete") await deleteServer(server);
+        if (button.dataset.action === "toggle-enabled") await updateServer(server.$key, { enabled: !server.enabled });
+        if (button.dataset.action === "toggle-premium") await updateServer(server.$key, { premium: !server.premium });
+      });
+    }
+
+    function isFirebaseConfigured() {
+      return Boolean(
+        firebaseConfig.apiKey &&
+        firebaseConfig.appId &&
+        firebaseConfig.messagingSenderId &&
+        firebaseConfig.databaseURL === "https://my-new-vpn-88725-default-rtdb.asia-southeast1.firebasedatabase.app"
+      );
+    }
+
+    function initFirebase() {
+      state.configured = isFirebaseConfigured();
+      if (!state.configured) {
+        setConnection("Config missing", "Waiting for Firebase Web SDK config", "bad");
+        el("configNotice").classList.remove("hidden");
+        return;
+      }
+
+      try {
+        firebase.initializeApp(firebaseConfig);
+        state.db = firebase.database();
+        state.ref = state.db.ref(DATABASE_PATH);
+
+        state.db.ref(".info/connected").on("value", (snapshot) => {
+          if (snapshot.val() === true) {
+            setConnection("Connected", "Live sync active", "good");
+          } else {
+            setConnection("Connecting", "Trying to reach Firebase", "");
+          }
+        });
+
+        state.ref.on("value", (snapshot) => {
+          const value = snapshot.val() || {};
+          state.servers = Object.entries(value)
+            .map(([key, server]) => {
+              const data = server && typeof server === "object" ? server : {};
+              return {
+                ...data,
+                $key: key,
+                id: data.id ? data.id : key,
+                enabled: normalizeBoolean(data.enabled),
+                premium: normalizeBoolean(data.premium)
+              };
+            })
+            .sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0));
+          renderServers();
+        }, (error) => {
+          setConnection("Error", "Database permission or network error", "bad");
+          toast(error.message || "Could not read database.", "error");
+        });
+
+        el("configNotice").classList.add("hidden");
+      } catch (error) {
+        setConnection("Config error", "Check Firebase config values", "bad");
+        toast(error.message || "Firebase initialization failed.", "error");
+      }
+    }
+
+    function setConnection(status, text, type) {
+      el("dbStatus").textContent = status;
+      el("connectionText").textContent = text;
+      el("connectionDot").className = `dot ${type || ""}`;
+    }
+
+    function getFilteredServers() {
+      const term = state.filters.search;
+      return state.servers.filter((server) => {
+        const haystack = [
+          server.name,
+          server.country,
+          server.flag,
+          server.host,
+          server.protocol,
+          server.category,
+          server.sni,
+          server.headerHost,
+          server.proxyHost
+        ].join(" ").toLowerCase();
+
+        if (term && !haystack.includes(term)) return false;
+        if (state.filters.category && server.category !== state.filters.category) return false;
+        if (state.filters.protocol && server.protocol !== state.filters.protocol) return false;
+        if (state.filters.status === "enabled" && !server.enabled) return false;
+        if (state.filters.status === "disabled" && server.enabled) return false;
+        if (state.filters.status === "premium" && !server.premium) return false;
+        if (state.filters.status === "free" && server.premium) return false;
+        return true;
+      });
+    }
+
+    function renderServers() {
+      const list = el("serverList");
+      const filtered = getFilteredServers();
+
+      updateStats();
+
+      if (!filtered.length) {
+        list.innerHTML = `<div class="empty">No servers found. Add a V2Ray or SSH server, or adjust your filters.</div>`;
+        return;
+      }
+
+      list.innerHTML = filtered.map((server) => serverCard(server)).join("");
+    }
+
+    function updateStats() {
+      el("statTotal").textContent = state.servers.length;
+      el("statEnabled").textContent = state.servers.filter((server) => server.enabled).length;
+      el("statV2ray").textContent = state.servers.filter((server) => server.category === "V2RAY").length;
+      el("statSsh").textContent = state.servers.filter((server) => server.category === "SSH").length;
+    }
+
+    function serverCard(server) {
+      const hostPort = [server.host || "", server.port || ""].filter(Boolean).join(":");
+      const detailRows = [
+        ["Country", `${escapeHtml(server.flag || "")} ${escapeHtml(server.country || "Unknown")}`.trim()],
+        ["Host", escapeHtml(hostPort || "Not set")],
+        ["Network", escapeHtml(server.network || server.sni || server.proxyHost || "Not set")],
+        ["Updated", formatDate(server.updatedAt)]
+      ];
+
+      return `
+        <article class="server-card ${server.enabled ? "" : "disabled"}">
+          <div class="server-head">
+            <div>
+              <h3 class="server-name">${escapeHtml(server.name || "Unnamed server")}</h3>
+              <div class="server-meta">
+                <span class="tag">${escapeHtml(server.category || "UNKNOWN")}</span>
+                <span class="tag">${escapeHtml(server.protocol || "UNKNOWN")}</span>
+                <span class="tag ${server.enabled ? "ok" : "off"}">${server.enabled ? "Enabled" : "Disabled"}</span>
+                ${server.premium ? `<span class="tag premium">Premium</span>` : `<span class="tag">Free</span>`}
+              </div>
+            </div>
+          </div>
+
+          <div class="kv">
+            ${detailRows.map(([key, value]) => `<span>${key}</span><strong>${value}</strong>`).join("")}
+          </div>
+
+          <div class="card-actions">
+            <button class="btn small" type="button" data-action="edit" data-key="${escapeAttr(server.$key)}">Edit</button>
+            <button class="btn small" type="button" data-action="toggle-enabled" data-key="${escapeAttr(server.$key)}">${server.enabled ? "Disable" : "Enable"}</button>
+            <button class="btn small" type="button" data-action="toggle-premium" data-key="${escapeAttr(server.$key)}">${server.premium ? "Make Free" : "Premium"}</button>
+            <button class="btn small danger" type="button" data-action="delete" data-key="${escapeAttr(server.$key)}">Delete</button>
+          </div>
+        </article>
+      `;
+    }
+
+    function parseRawLinkIntoForm(showToast) {
+      const rawLink = el("v2RawLink").value.trim();
+      if (!rawLink) return;
+      if (!/^(vless|vmess|trojan):\/\//i.test(rawLink)) return;
+      if (!showToast && rawLink === state.lastAutoParsedRaw) return;
+
+      try {
+        const parsed = parseV2RayLink(rawLink);
+        fillV2Fields(parsed, { keepExistingCountry: true });
+        state.lastAutoParsedRaw = rawLink;
+        if (showToast) toast("Raw link parsed successfully.", "success");
+      } catch (error) {
+        if (showToast) {
+          toast("Could not parse this link. You can still fill fields manually.", "error");
+        }
+      }
+    }
+
+    function parseV2RayLink(rawLink) {
+      const link = rawLink.trim();
+      const protocol = link.split("://")[0].toUpperCase();
+
+      if (!V2_PROTOCOLS.includes(protocol)) {
+        throw new Error("Unsupported V2Ray protocol.");
+      }
+
+      if (protocol === "VMESS") {
+        return parseVmess(link);
+      }
+
+      return parseUrlStyleLink(link, protocol);
+    }
+
+    function parseUrlStyleLink(link, protocol) {
+      const url = new URL(link);
+      const params = url.searchParams;
+      const remark = decodeUrlPart(url.hash ? url.hash.slice(1) : "");
+      const userSecret = decodeUrlPart(url.username || "");
+
+      return cleanObject({
+        protocol,
+        name: remark || url.hostname,
+        host: url.hostname,
+        port: toNumber(url.port),
+        uuid: userSecret,
+        network: params.get("type") || params.get("network") || params.get("net") || "",
+        security: params.get("security") || params.get("tls") || "",
+        sni: params.get("sni") || params.get("serverName") || params.get("servername") || params.get("peer") || "",
+        path: params.get("path") || params.get("serviceName") || "",
+        headerHost: params.get("host") || params.get("headerHost") || "",
+        rawLink: link
+      });
+    }
+
+    function parseVmess(link) {
+      const payload = link.replace(/^vmess:\/\//i, "").trim();
+
+      try {
+        const decoded = decodeBase64Json(payload);
+        return cleanObject({
+          protocol: "VMESS",
+          name: decoded.ps || decoded.name || decoded.add || "",
+          host: decoded.add || decoded.host || "",
+          port: toNumber(decoded.port),
+          uuid: decoded.id || decoded.uuid || "",
+          network: decoded.net || decoded.type || "",
+          security: decoded.tls || decoded.security || "",
+          sni: decoded.sni || decoded.peer || "",
+          path: decoded.path || "",
+          headerHost: decoded.host || "",
+          rawLink: link
+        });
+      } catch (error) {
+        return parseUrlStyleLink(link, "VMESS");
+      }
+    }
+
+    function decodeBase64Json(value) {
+      const normalized = value.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+      const binary = atob(normalized);
+      const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+      const json = new TextDecoder().decode(bytes);
+      return JSON.parse(json);
+    }
+
+    function decodeUrlPart(value) {
+      if (!value) return "";
+      try {
+        return decodeURIComponent(value.replace(/\+/g, "%20"));
+      } catch (error) {
+        return value;
+      }
+    }
+
+    function fillV2Fields(data, options = {}) {
+      setValue("v2Protocol", data.protocol);
+      setValue("v2RawLink", data.rawLink);
+      if (data.name) setValue("v2Name", data.name);
+      if (!options.keepExistingCountry || !el("v2Country").value) setValue("v2Country", data.country || "");
+      if (!options.keepExistingCountry || !el("v2Flag").value) setValue("v2Flag", data.flag || "");
+      setValue("v2Host", data.host);
+      setValue("v2Port", data.port || "");
+      setValue("v2Uuid", data.uuid);
+      setValue("v2Network", data.network);
+      setValue("v2Security", data.security);
+      setValue("v2Sni", data.sni);
+      setValue("v2Path", data.path);
+      setValue("v2HeaderHost", data.headerHost);
+      if (typeof data.enabled === "boolean") el("v2Enabled").checked = data.enabled;
+      if (typeof data.premium === "boolean") el("v2Premium").checked = data.premium;
+    }
+
+    async function saveV2Ray() {
+      const editKey = el("v2EditKey").value;
+      const key = editKey || newServerKey();
+      if (!key) return;
+
+      const server = {
+        id: key,
+        name: value("v2Name"),
+        protocol: value("v2Protocol"),
+        category: "V2RAY",
+        country: value("v2Country"),
+        flag: value("v2Flag"),
+        rawLink: value("v2RawLink"),
+        host: value("v2Host"),
+        port: toNumber(value("v2Port")),
+        uuid: value("v2Uuid"),
+        network: value("v2Network"),
+        security: value("v2Security"),
+        sni: value("v2Sni"),
+        path: value("v2Path"),
+        headerHost: value("v2HeaderHost"),
+        enabled: el("v2Enabled").checked,
+        premium: el("v2Premium").checked,
+        updatedAt: nowSeconds()
+      };
+
+      const error = validateV2Ray(server);
+      if (error) {
+        toast(error, "error");
+        return;
+      }
+
+      const saved = await writeServer(key, server, editKey ? "V2Ray server updated." : "V2Ray server added.");
+      if (!saved) return;
+      resetV2Form();
+      switchTab("dashboard");
+    }
+
+    function validateV2Ray(server) {
+      if (!server.name) return "V2Ray name is required.";
+      if (!V2_PROTOCOLS.includes(server.protocol)) return "Choose VLESS, VMESS, or TROJAN.";
+      if (!server.host) return "Host is required.";
+      if (!validPort(server.port)) return "Port must be between 1 and 65535.";
+      if (!server.uuid) return "UUID / password is required.";
+      return "";
+    }
+
+    function updateSshDynamicFields() {
+      const mode = el("sshMode").value;
+      const show = {
+        sni: mode === "SSH_SSL" || mode === "SSH_PAYLOAD_PROXY",
+        payload: mode === "SSH_PAYLOAD" || mode === "SSH_PAYLOAD_PROXY",
+        proxyHost: mode === "SSH_PAYLOAD_PROXY",
+        proxyPort: mode === "SSH_PAYLOAD_PROXY"
+      };
+
+      qsa("[data-ssh-field]").forEach((field) => {
+        field.classList.toggle("hide", !show[field.dataset.sshField]);
+      });
+
+      if (mode === "SSH_SSL" && !value("sshPort")) setValue("sshPort", 443);
+      if (mode === "SSH_PAYLOAD" && !value("sshPort")) setValue("sshPort", 80);
+      if (mode === "SSH_PAYLOAD_PROXY" && !value("sshPort")) setValue("sshPort", 22);
+    }
+
+    async function saveSsh() {
+      const editKey = el("sshEditKey").value;
+      const key = editKey || newServerKey();
+      if (!key) return;
+
+      const mode = value("sshMode");
+      const server = cleanObject({
+        id: key,
+        name: value("sshName"),
+        protocol: mode,
+        category: "SSH",
+        country: value("sshCountry"),
+        flag: value("sshFlag"),
+        host: value("sshHost"),
+        port: toNumber(value("sshPort")),
+        username: value("sshUsername"),
+        password: value("sshPassword"),
+        sni: mode === "SSH_SSL" || mode === "SSH_PAYLOAD_PROXY" ? value("sshSni") : undefined,
+        payload: mode === "SSH_PAYLOAD" || mode === "SSH_PAYLOAD_PROXY" ? value("sshPayload") : undefined,
+        proxyHost: mode === "SSH_PAYLOAD_PROXY" ? value("sshProxyHost") : undefined,
+        proxyPort: mode === "SSH_PAYLOAD_PROXY" ? toNumber(value("sshProxyPort")) : undefined,
+        enabled: el("sshEnabled").checked,
+        premium: el("sshPremium").checked,
+        updatedAt: nowSeconds()
+      });
+
+      const error = validateSsh(server);
+      if (error) {
+        toast(error, "error");
+        return;
+      }
+
+      const saved = await writeServer(key, server, editKey ? "SSH server updated." : "SSH server added.");
+      if (!saved) return;
+      resetSshForm();
+      switchTab("dashboard");
+    }
+
+    function validateSsh(server) {
+      if (!server.name) return "SSH name is required.";
+      if (!SSH_PROTOCOLS.includes(server.protocol)) return "Choose a supported SSH mode.";
+      if (!server.host) return "SSH host is required.";
+      if (!validPort(server.port)) return "SSH port must be between 1 and 65535.";
+      if (!server.username) return "SSH username is required.";
+      if (!server.password) return "SSH password is required.";
+      if (server.protocol === "SSH_PAYLOAD" && !server.payload) return "Payload is required for SSH_PAYLOAD.";
+      if (server.protocol === "SSH_PAYLOAD_PROXY" && !server.payload) return "Payload is required for SSH_PAYLOAD_PROXY.";
+      if (server.protocol === "SSH_PAYLOAD_PROXY" && !server.proxyHost) return "Proxy host is required for SSH_PAYLOAD_PROXY.";
+      if (server.protocol === "SSH_PAYLOAD_PROXY" && !validPort(server.proxyPort)) return "Proxy port must be between 1 and 65535.";
+      return "";
+    }
+
+    function editServer(server) {
+      if (server.category === "V2RAY" || V2_PROTOCOLS.includes(server.protocol)) {
+        el("v2EditKey").value = server.$key;
+        el("v2EditBanner").classList.add("show");
+        el("saveV2Btn").textContent = "Update V2Ray Server";
+        fillV2Fields(server);
+        switchTab("v2ray");
+        return;
+      }
+
+      if (server.category === "SSH" || SSH_PROTOCOLS.includes(server.protocol)) {
+        el("sshEditKey").value = server.$key;
+        el("sshEditBanner").classList.add("show");
+        el("saveSshBtn").textContent = "Update SSH Server";
+        fillSshFields(server);
+        switchTab("ssh");
+        return;
+      }
+
+      toast("This server category is not supported by the editor.", "error");
+    }
+
+    function fillSshFields(server) {
+      setValue("sshName", server.name);
+      setValue("sshMode", server.protocol);
+      setValue("sshCountry", server.country);
+      setValue("sshFlag", server.flag);
+      setValue("sshHost", server.host);
+      setValue("sshPort", server.port || "");
+      setValue("sshUsername", server.username);
+      setValue("sshPassword", server.password);
+      setValue("sshSni", server.sni);
+      setValue("sshPayload", server.payload);
+      setValue("sshProxyHost", server.proxyHost);
+      setValue("sshProxyPort", server.proxyPort || "");
+      el("sshEnabled").checked = Boolean(server.enabled);
+      el("sshPremium").checked = Boolean(server.premium);
+      updateSshDynamicFields();
+    }
+
+    async function deleteServer(server) {
+      if (!state.configured || !state.db) {
+        toast("Paste Firebase config before deleting.", "error");
+        return;
+      }
+
+      const ok = confirm(`Delete "${server.name || server.id}" from Firebase?`);
+      if (!ok) return;
+
+      try {
+        await state.db.ref(`${DATABASE_PATH}/${server.$key}`).remove();
+        toast("Server deleted.", "success");
+      } catch (error) {
+        toast(error.message || "Delete failed.", "error");
+      }
+    }
+
+    async function updateServer(key, patch) {
+      await writePatch(key, {
+        ...patch,
+        updatedAt: nowSeconds()
+      }, "Server updated.");
+    }
+
+    async function writeServer(key, server, successMessage) {
+      if (!state.configured || !state.db) {
+        toast("Paste Firebase config before saving.", "error");
+        return false;
+      }
+
+      try {
+        await state.db.ref(`${DATABASE_PATH}/${key}`).set(server);
+        toast(successMessage, "success");
+        return true;
+      } catch (error) {
+        toast(error.message || "Save failed. Check database rules.", "error");
+        return false;
+      }
+    }
+
+    async function writePatch(key, patch, successMessage) {
+      if (!state.configured || !state.db) {
+        toast("Paste Firebase config before updating.", "error");
+        return false;
+      }
+
+      try {
+        await state.db.ref(`${DATABASE_PATH}/${key}`).update(patch);
+        toast(successMessage, "success");
+        return true;
+      } catch (error) {
+        toast(error.message || "Update failed. Check database rules.", "error");
+        return false;
+      }
+    }
+
+    function newServerKey() {
+      if (!state.configured || !state.ref) {
+        toast("Paste Firebase config before saving.", "error");
+        return "";
+      }
+      return state.ref.push().key;
+    }
+
+    function resetV2Form() {
+      el("v2rayForm").reset();
+      el("v2EditKey").value = "";
+      el("v2Enabled").checked = true;
+      el("v2Premium").checked = false;
+      el("v2Protocol").value = "VLESS";
+      el("v2EditBanner").classList.remove("show");
+      el("saveV2Btn").textContent = "Save V2Ray Server";
+      state.lastAutoParsedRaw = "";
+    }
+
+    function resetSshForm() {
+      el("sshForm").reset();
+      el("sshEditKey").value = "";
+      el("sshEnabled").checked = true;
+      el("sshPremium").checked = false;
+      el("sshMode").value = "SSH_SSL";
+      el("sshEditBanner").classList.remove("show");
+      el("saveSshBtn").textContent = "Save SSH Server";
+      updateSshDynamicFields();
+    }
+
+    function value(id) {
+      return el(id).value.trim();
+    }
+
+    function setValue(id, val) {
+      el(id).value = val == null ? "" : String(val);
+    }
+
+    function toNumber(value) {
+      const number = Number(value);
+      return Number.isFinite(number) ? number : 0;
+    }
+
+    function validPort(port) {
+      return Number.isInteger(Number(port)) && Number(port) >= 1 && Number(port) <= 65535;
+    }
+
+    function normalizeBoolean(value) {
+      if (typeof value === "boolean") return value;
+      if (typeof value === "string") return value.toLowerCase() === "true";
+      return Boolean(value);
+    }
+
+    function nowSeconds() {
+      return Math.floor(Date.now() / 1000);
+    }
+
+    function cleanObject(input) {
+      return Object.fromEntries(
+        Object.entries(input).filter(([, value]) => value !== undefined && value !== null)
+      );
+    }
+
+    function formatDate(seconds) {
+      if (!seconds) return "Not set";
+      return new Date(Number(seconds) * 1000).toLocaleString();
+    }
+
+    function escapeHtml(value) {
+      return String(value == null ? "" : value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value).replace(/`/g, "&#096;");
+    }
+
+    function toast(message, type = "") {
+      const item = document.createElement("div");
+      item.className = `toast ${type}`;
+      item.textContent = message;
+      el("toastWrap").appendChild(item);
+      setTimeout(() => item.remove(), 4200);
+    }
+  </script>
+</body>
+</html>
